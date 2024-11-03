@@ -1,0 +1,50 @@
+name: Enforce Specific Reviewer Approvals
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+jobs:
+  enforce_approvals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Required Approvals
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Required reviewers' GitHub usernames
+          REQUIRED_REVIEWERS=("CTO" "CFO")
+          SYSOPS_TEAM=("matx104" "WamiqSid" "Aatika-K")
+
+          # Get the pull request number
+          PR_NUMBER=$(jq -r .pull_request.number <<< "$GITHUB_EVENT_PATH")
+
+          # Get the list of reviewers who have approved the PR
+          APPROVED_REVIEWERS=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
+            | jq -r '.[] | select(.state == "APPROVED") | .user.login')
+
+          # Set up a flag for each required reviewer
+          CTO_APPROVED=0
+          CFO_APPROVED=0
+          SYSOPS_APPROVED=0
+
+          # Check if each required reviewer has approved
+          for reviewer in $APPROVED_REVIEWERS; do
+            if [[ "$reviewer" == "CTO" ]]; then
+              CTO_APPROVED=1
+            elif [[ "$reviewer" == "CFO" ]]; then
+              CFO_APPROVED=1
+            elif [[ "${SYSOPS_TEAM[@]}" =~ "$reviewer" ]]; then
+              SYSOPS_APPROVED=1
+            fi
+          done
+
+          # Check if all required reviewers have approved
+          if [[ $CTO_APPROVED -eq 1 && $CFO_APPROVED -eq 1 && $SYSOPS_APPROVED -eq 1 ]]; then
+            echo "All required reviewers have approved."
+          else
+            echo "Error: Not all required reviewers have approved."
+            exit 1
+          fi
