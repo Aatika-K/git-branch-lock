@@ -8,6 +8,11 @@ jobs:
   enforce_approvals:
     runs-on: ubuntu-latest
     steps:
+      - name: Set up dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Check for Required Approvals
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -16,8 +21,8 @@ jobs:
           MANDATORY_MANAGER="matx104"
           DEV_SYSOPS_TEAM=("WamiqSid" "Aatika-K")
 
-          # Get the pull request number
-          PR_NUMBER=$(jq -r '.number' "$GITHUB_EVENT_PATH")
+          # Get the pull request number directly from the environment variable
+          PR_NUMBER=${{ github.event.pull_request.number }}
 
           # Get the list of reviewers who have approved the PR
           APPROVED_REVIEWERS=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
