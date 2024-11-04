@@ -30,21 +30,32 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
             | jq -r '.[] | select(.state == "APPROVED") | .user.login')
 
+          # Output for debugging
+          echo "Approved Reviewers List: $APPROVED_REVIEWERS"
+
           # Set up flags to track approval
           MANAGER_APPROVED=0
           DEV_SYSOPS_APPROVED=0
 
           # Check if each required reviewer has approved
           for reviewer in $APPROVED_REVIEWERS; do
+            echo "Checking reviewer: $reviewer"
             if [[ "$reviewer" == "$MANDATORY_MANAGER" ]]; then
               MANAGER_APPROVED=1
-            elif [[ " ${DEV_SYSOPS_TEAM[@]} " =~ " $reviewer " ]]; then
-              DEV_SYSOPS_APPROVED=1
+              echo "Manager approval received from $reviewer"
+            else
+              # Loop through DEV_SYSOPS_TEAM to see if any member has approved
+              for sysop in "${DEV_SYSOPS_TEAM[@]}"; do
+                if [[ "$reviewer" == "$sysop" ]]; then
+                  DEV_SYSOPS_APPROVED=1
+                  echo "DevSysOps approval received from $reviewer"
+                  break
+                fi
+              done
             fi
           done
 
-          # Output for debugging
-          echo "Approved Reviewers: $APPROVED_REVIEWERS"
+          # Output the flag statuses for debugging
           echo "MANAGER_APPROVED: $MANAGER_APPROVED"
           echo "DEV_SYSOPS_APPROVED: $DEV_SYSOPS_APPROVED"
 
